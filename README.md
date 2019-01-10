@@ -2,8 +2,11 @@
 @Author: Vivek Srinivas - Baliga Lab, ISB
 
 This is a program to calculate drug tolerance from multiwell plate assay
+
 Program requires two files - 'Labels.csv' and 'Readings.txt' for example
-    ##refer to examples files for format## 
+
+(Refer to examples files for format)
+
     Step 1: Plot growth
             plot_growth_in_wells(results_text_file, labels, instrument = "BioTek"/"BioAnalyzer")
     Step 2: Identify OD threshold for 'Start of growth point determination'
