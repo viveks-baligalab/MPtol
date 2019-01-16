@@ -30,20 +30,35 @@ def get_mins(i):
 def brkstr(string):
     return [float(i) for i in string.split(";")]
 
+def normalize_reads_to_initial(reads):
+    min_read = min(reads)
+    normed = []
+    for i in reads:
+        normed_read = min_read-i
+        if normed_read > 0:
+            normed.append(normed_read)
+        else:
+            normed.append(0.0)
+    return normed
+
 def read_results_biotek(results_text_file):
     with open(results_text_file,"r") as f:
         lines = [ i[:-2] for i in f.readlines()]
     data1 = lines[lines.index("OD600:600"):]
     data = data1[:data1.index("Results")]
     data_split = np.array([i.split("\t") for i in data[2:-1]]).T
+    data_split_normed = [normalize_reads_to_initial(i) for i in data_split[2:]]
     Time_points = [str(get_mins(i)) for i in data_split[0][1:]]
-    return data_split[2:], Time_points
+    return data_split_normed, Time_points
 
 def read_results_bioanalyzer(results_text_file):
     data = pd.read_csv(results_text_file,header=0).transpose()
     time = data[0,:].values
     array = [[i]+list(l.values) for i,l in data.iloc[1:].iterrows()]
+    array_normed = [normalize_reads_to_initial(i) for i in array]
     return time, array
+
+
 
 def read_results_text_file(results_text_file, labels, instrument_type):
     labels = pd.read_csv(labels,index_col=0,header = 0)
