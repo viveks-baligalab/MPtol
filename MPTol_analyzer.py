@@ -9,7 +9,7 @@ Program requires two files - 'Labels.csv' and 'Readings.txt' for example
             plot_growth_in_wells(results_text_file, labels, instrument = "BioTek"/"BioAnalyzer")
     Step 2: Identify OD threshold for 'Start of growth point determination'
     Step 3: Calculate drug tolerance with command -
-            calculate_plot_tolerance(results_text_file, labels, ODT = __,Drug = __, instrument = "BioTek"/"BioAnalyzer" )
+            calculate_plot_tolerance(results_text_file, labels, ODT = __,drug = __, instrument = "BioTek"/"BioAnalyzer" )
 """
 
 import csv, re
@@ -30,16 +30,9 @@ def get_mins(i):
 def brkstr(string):
     return [float(i) for i in string.split(";")]
 
-def normalize_reads_to_initial(reads):
-    min_read = min(reads)
-    normed = []
-    for i in reads:
-        normed_read = min_read-i
-        if normed_read > 0:
-            normed.append(normed_read)
-        else:
-            normed.append(0.0)
-    return normed
+def brkstr2(string):
+    return string.split
+   
 
 def read_results_biotek(results_text_file):
     with open(results_text_file,"r") as f:
@@ -47,18 +40,16 @@ def read_results_biotek(results_text_file):
     data1 = lines[lines.index("OD600:600"):]
     data = data1[:data1.index("Results")]
     data_split = np.array([i.split("\t") for i in data[2:-1]]).T
-    data_split_normed = [normalize_reads_to_initial(i) for i in data_split[2:]]
     Time_points = [str(get_mins(i)) for i in data_split[0][1:]]
-    return data_split_normed, Time_points
+    od_readings = data_split[2:]
+    ork = len([i for i in od_readings[0] if i != ""])
+    return od_readings[:,:ork], Time_points[:ork-1]
 
 def read_results_bioanalyzer(results_text_file):
     data = pd.read_csv(results_text_file,header=0).transpose()
     time = data[0,:].values
     array = [[i]+list(l.values) for i,l in data.iloc[1:].iterrows()]
-    array_normed = [normalize_reads_to_initial(i) for i in array]
     return time, array
-
-
 
 def read_results_text_file(results_text_file, labels, instrument_type):
     labels = pd.read_csv(labels,index_col=0,header = 0)
@@ -101,8 +92,10 @@ def get_sgt(od,time, odt):
     sgt = det_model(odt)
     if sgt > min(time) and sgt < max(time)+np.mean(time):
         ret_sgt = sgt
+    elif sgt > max(time)+np.mean(time):
+        ret_sgt = 48.0
     else:
-        ret_sgt = np.nan
+        ret_sgt = 0.5
     return ret_sgt
 
 def add_sgt(results_text_file, labels, odt, instrument):
@@ -134,11 +127,11 @@ def calculate_tolerance(results_text_file,labels,ODT, instrument):
     data = data.drop(["Time_points","OD"], axis =1)
     control = np.nanmean(data[data.Sample_type.isin(["Control"])].SGT.values)
     if control < 0:
-        control = 10**5
+        control = 48.0
     else:
         control = control
     for n,i in data.iterrows():
-        data.at[n,"log2_surviving_cells"] = np.log2(2**(-(i.SGT-control)))
+        data.at[n,"log2_surviving_cells"] = np.log2(2**(-(control-i.SGT)))
     return data
         
 def calculate_plot_tolerance(results_text_file,labels,**kwargs):
@@ -154,8 +147,8 @@ def calculate_plot_tolerance(results_text_file,labels,**kwargs):
         data = calculate_tolerance(results_text_file,labels,kwargs["ODT"], kwargs["instrument"])
         if kwargs["drug"] not in data.Drug.values:
             print "Enter correct name of the drug"
-        elif kwargs["instrument"] not in data.Drug.values:
-            print "Enter instrument used for reading OD ('BioTek'/'BioAnalyzer')"
+        #elif kwargs["instrument"] not in data.Drug.values:
+            #print "Enter instrument used for reading OD ('BioTek'/'BioAnalyzer')"
         else:
             data = data[data.Drug.isin([kwargs["drug"]])]
             tolerance = data.pivot(index="Incubation_time",columns="Concentration",values="log2_surviving_cells")
