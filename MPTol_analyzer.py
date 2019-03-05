@@ -38,7 +38,15 @@ def convert_to_strings(listx):
 	for i in listx:
 		new_list.append(str(i))
 	return new_list
-   
+    
+def blank_zero_hour(odl):
+    ret_odl = []
+    for i in odl:
+        if i <= odl[0]:
+            ret_odl.append(str(0.0))
+        else:
+            ret_odl.append(str(float(i)-float(odl[0])))
+    return ret_odl
 
 def read_results_biotek(results_text_file):
     with open(results_text_file,"r") as f:
@@ -75,7 +83,7 @@ def read_results_text_file(results_text_file, labels, instrument_type):
             ret_DF.at[n,"Incubation_time"] = labels.loc[zz[0]].Incubation_time
             ret_DF.at[n,"Sample_type"] = labels.loc[zz[0]].Type
             ret_DF.at[n,"Time_points"]= ";".join(Time_points)
-            ret_DF.at[n,"OD"] = ";".join(zz[1:])
+            ret_DF.at[n,"OD"] = ";".join(blank_zero_hour(zz[1:]))
         else:
             print "%s well is not labelled correctly and will be skipped"%zz[0]
     return ret_DF
@@ -96,15 +104,18 @@ def plot_growth_in_wells(results_text_file,labels,**kwargs):
 
 def get_sgt(od,time, odt):
     warnings.simplefilter('ignore', np.RankWarning)
-    model = np.polyfit(od,time,2)
-    det_model = np.poly1d(model)
-    sgt = det_model(odt)
-    if sgt > min(time) and sgt < 2.0*(max(time)):#:+np.mean(time):
-        ret_sgt = sgt
-    elif sgt > 2.0*(max(time)):#:+np.mean(time):
-        ret_sgt = 2.0*(max(time))#:+np.mean(time)
-    else:
-        ret_sgt = 0.5
+    try:
+        model = np.polyfit(od,time,3)
+        det_model = np.poly1d(model)
+        sgt = det_model(odt)
+        if sgt < min(time):
+            ret_sgt = 2.0*(max(time))
+        elif sgt > 2.0*(max(time)):
+            ret_sgt = 2.0*(max(time))
+        else:
+            ret_sgt = sgt
+    except:
+        ret_sgt = 2.0*(max(time))
     return ret_sgt
 
 def add_sgt(results_text_file, labels, odt, instrument):
